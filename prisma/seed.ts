@@ -4,10 +4,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PERMISSIONS, ROLE_DEFAULTS } from "../src/modules/auth/permissions";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is required for seeding.");
-const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-if (!adminPassword) throw new Error("SEED_ADMIN_PASSWORD is required; no default credential is seeded.");
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required for seeding.`);
+  return value;
+}
+
+const connectionString = requiredEnv("DATABASE_URL");
+const adminPassword = requiredEnv("SEED_ADMIN_PASSWORD");
 const demoPassword = process.env.SEED_DEMO_PASSWORD ?? adminPassword;
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
