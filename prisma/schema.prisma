@@ -7,16 +7,86 @@ datasource db {
   provider = "postgresql"
 }
 
-enum FormVersionStatus { DRAFT PUBLISHED RETIRED }
-enum FieldType { SHORT_TEXT LONG_TEXT NUMBER INTEGER DATE DATETIME BOOLEAN SINGLE_SELECT MULTI_SELECT TAGS EMAIL PHONE URL }
-enum SubmissionStatus { DRAFT IN_PROGRESS SUBMITTED UNDER_REVIEW APPROVED REJECTED ARCHIVED }
-enum MessageRole { USER ASSISTANT SYSTEM }
-enum ImportStatus { UPLOADED PARSING NEEDS_REVIEW READY FAILED }
-enum SourceType { MANUAL DOCX XLSX }
-enum SyncProvider { OPENWEBUI }
-enum SyncStatus { PENDING SYNCING SYNCED FAILED STALE REMOVED }
-enum IndexStatus { PENDING INDEXING INDEXED FAILED STALE REMOVED }
-enum AssignmentType { OPEN USER ROLE DEPARTMENT }
+enum FormVersionStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum FieldType {
+  SHORT_TEXT
+  LONG_TEXT
+  NUMBER
+  INTEGER
+  DATE
+  DATETIME
+  BOOLEAN
+  SINGLE_SELECT
+  MULTI_SELECT
+  TAGS
+  EMAIL
+  PHONE
+  URL
+}
+
+enum SubmissionStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ImportStatus {
+  UPLOADED
+  PARSING
+  NEEDS_REVIEW
+  READY
+  FAILED
+}
+
+enum SourceType {
+  MANUAL
+  DOCX
+  XLSX
+}
+
+enum SyncProvider {
+  OPENWEBUI
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+  STALE
+  REMOVED
+}
+
+enum IndexStatus {
+  PENDING
+  INDEXING
+  INDEXED
+  FAILED
+  STALE
+  REMOVED
+}
+
+enum AssignmentType {
+  OPEN
+  USER
+  ROLE
+  DEPARTMENT
+}
 
 model User {
   id              String   @id @default(cuid())
