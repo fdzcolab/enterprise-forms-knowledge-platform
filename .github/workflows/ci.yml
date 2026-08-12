@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: postgresql://enterprise:enterprise@localhost:5432/enterprise_forms?schema=public
+  APP_URL: http://localhost:3100
+  AUTH_SECRET: ci-auth-secret-with-at-least-32-characters
+  LLM_BASE_URL: http://127.0.0.1:8000/v1
+  LLM_API_KEY: ci-placeholder-key
+  LLM_MODEL: ci-placeholder-model
+  EMBEDDING_BASE_URL: http://127.0.0.1:8001/v1
+  EMBEDDING_API_KEY: ci-placeholder-key
+  EMBEDDING_MODEL: ci-placeholder-embedding-model
+  EMBEDDING_DIMENSIONS: "4096"
+  QDRANT_URL: http://127.0.0.1:6333
+  QDRANT_API_KEY: ""
+  QDRANT_COLLECTION: enterprise_knowledge
+  KNOWLEDGE_TOP_K: "8"
+  KNOWLEDGE_SCORE_THRESHOLD: "0.25"
+  FILE_STORAGE_PATH: ./storage
+  MAX_IMPORT_BYTES: "10485760"
+  OPENWEBUI_SYNC_ENABLED: "false"
+  OPENWEBUI_BASE_URL: ""
+  OPENWEBUI_API_KEY: ""
+  OPENWEBUI_KNOWLEDGE_BASE_ID: ""
+  OPENWEBUI_SYNC_APPROVED_ONLY: "true"
+  OPENWEBUI_REMOVE_STALE: "true"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: enterprise
+          POSTGRES_PASSWORD: enterprise
+          POSTGRES_DB: enterprise_forms
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U enterprise -d enterprise_forms"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply database migrations
+        run: pnpm prisma migrate deploy
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
