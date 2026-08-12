@@ -1,0 +1,2 @@
+import { authenticateApiRequest } from "@/modules/api-clients/auth";import { answerKnowledgeQuestion } from "@/modules/knowledge/query";import { toApiError } from "@/lib/http/errors";
+export async function POST(request:Request){try{const {user}=await authenticateApiRequest(request,"knowledge:search");const body=await request.json();if(!body.question)throw new Error("BAD_REQUEST");return Response.json({data:await answerKnowledgeQuestion(user.id,String(body.question))});}catch(e){return toApiError(e);}}

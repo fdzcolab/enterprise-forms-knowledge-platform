@@ -1,0 +1,8 @@
+import { prisma } from "@/lib/db/prisma";
+import { requireUser } from "@/modules/auth/session";
+import { requirePermission } from "@/modules/auth/authorization";
+import { generateApiKey } from "@/modules/api-clients/auth";
+import { toApiError } from "@/lib/http/errors";
+const allowedScopes=new Set(["forms:read","submissions:create","submissions:read","submissions:message","submissions:update","submissions:submit","knowledge:search"]);
+export async function GET(){try{const user=await requireUser();await requirePermission(user.id,"API_CLIENT_MANAGE");const data=await prisma.apiClient.findMany({select:{id:true,name:true,keyPrefix:true,scopes:true,isActive:true,expiresAt:true,lastUsedAt:true,createdAt:true},orderBy:{createdAt:"desc"}});return Response.json({data});}catch(e){return toApiError(e);}}
+export async function POST(request:Request){try{const user=await requireUser();await requirePermission(user.id,"API_CLIENT_MANAGE");const body=await request.json();const scopes=Array.isArray(body.scopes)?body.scopes.map(String).filter((x:string)=>allowedScopes.has(x)):[];if(!body.name||!scopes.length)throw new Error("BAD_REQUEST");const key=generateApiKey();const client=await prisma.apiClient.create({data:{name:String(body.name).slice(0,120),keyPrefix:key.keyPrefix,keyHash:key.keyHash,scopes,expiresAt:body.expiresAt?new Date(String(body.expiresAt)):undefined}});await prisma.auditEvent.create({data:{actorUserId:user.id,apiClientId:client.id,action:"API_CLIENT_CREATE",entityType:"ApiClient",entityId:client.id,metadata:{scopes}}});return Response.json({data:{id:client.id,name:client.name,token:key.token,scopes},warning:"This token is returned once. Store it securely."},{status:201});}catch(e){return toApiError(e);}}

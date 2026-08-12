@@ -1,0 +1,2 @@
+import { ImportEditor } from "@/components/import-editor";import { requireUser } from "@/modules/auth/session";import { requirePermission } from "@/modules/auth/authorization";
+export default async function Imports(){const user=await requireUser();await requirePermission(user.id,"FORM_TEMPLATE_CREATE");return <section><div className="page-head"><div><span className="eyebrow">مدیریت قالب</span><h1>ورود فرم</h1><p>فرم‌های DOCX و XLSX را تحلیل، فیلدهای پیشنهادی را اصلاح و سپس منتشر کنید.</p></div></div><ImportEditor/></section>}

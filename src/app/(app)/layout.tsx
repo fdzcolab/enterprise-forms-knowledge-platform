@@ -1,0 +1,2 @@
+import { redirect } from "next/navigation";import { requireUser } from "@/modules/auth/session";import { AppNav } from "@/components/app-nav";
+export default async function AppLayout({children}:{children:React.ReactNode}){let user;try{user=await requireUser();}catch{redirect("/login");}return <div className="app-shell"><AppNav/><main className="content"><header className="topbar"><div><strong>{user.name}</strong><span>{user.email}</span></div></header>{children}</main></div>}

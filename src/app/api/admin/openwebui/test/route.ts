@@ -1,0 +1,2 @@
+import { requireUser } from "@/modules/auth/session";import { requirePermission } from "@/modules/auth/authorization";import { envOpenWebUIConfig,OpenWebUIClient } from "@/lib/openwebui/client";import { toApiError } from "@/lib/http/errors";
+export async function POST(){try{const user=await requireUser();await requirePermission(user.id,"SYSTEM_CONFIGURE");const cfg=envOpenWebUIConfig();if(!cfg)throw new Error("OPENWEBUI_CONFIG_INVALID");await new OpenWebUIClient(cfg).testConnection();return Response.json({data:{ok:true}});}catch(e){return toApiError(e);}}

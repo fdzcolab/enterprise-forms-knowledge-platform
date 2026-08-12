@@ -1,0 +1,2 @@
+import { NextResponse } from "next/server"; import { prisma } from "@/lib/db/prisma";
+export async function GET(){const checks:any={database:false,qdrant:false};try{await prisma.$queryRaw`SELECT 1`;checks.database=true;}catch{}try{const r=await fetch(`${process.env.QDRANT_URL||"http://localhost:6333"}/collections`);checks.qdrant=r.ok;}catch{}const ready=checks.database&&checks.qdrant;return NextResponse.json({status:ready?"ready":"not_ready",checks},{status:ready?200:503});}

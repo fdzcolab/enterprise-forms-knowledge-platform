@@ -1,0 +1,2 @@
+import { authenticateApiRequest } from "@/modules/api-clients/auth";import { getSubmission } from "@/modules/submissions/service";import { toApiError } from "@/lib/http/errors";
+export async function GET(request:Request,{params}:{params:Promise<{submissionId:string}>}){try{const {user}=await authenticateApiRequest(request,"submissions:read");const {submissionId}=await params;const s=await getSubmission(submissionId);if(s.createdByUserId!==user.id)throw new Error("FORBIDDEN");return Response.json({data:s});}catch(e){return toApiError(e);}}

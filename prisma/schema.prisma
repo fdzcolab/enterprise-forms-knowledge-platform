@@ -1,0 +1,479 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FormVersionStatus { DRAFT PUBLISHED RETIRED }
+enum FieldType { SHORT_TEXT LONG_TEXT NUMBER INTEGER DATE DATETIME BOOLEAN SINGLE_SELECT MULTI_SELECT TAGS EMAIL PHONE URL }
+enum SubmissionStatus { DRAFT IN_PROGRESS SUBMITTED UNDER_REVIEW APPROVED REJECTED ARCHIVED }
+enum MessageRole { USER ASSISTANT SYSTEM }
+enum ImportStatus { UPLOADED PARSING NEEDS_REVIEW READY FAILED }
+enum SourceType { MANUAL DOCX XLSX }
+enum SyncProvider { OPENWEBUI }
+enum SyncStatus { PENDING SYNCING SYNCED FAILED STALE REMOVED }
+enum IndexStatus { PENDING INDEXING INDEXED FAILED STALE REMOVED }
+enum AssignmentType { OPEN USER ROLE DEPARTMENT }
+
+model User {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  username        String?  @unique
+  displayUsername String?
+  emailVerified   Boolean  @default(false)
+  image           String?
+  employeeNo      String?  @unique
+  departmentId    String?
+  isActive        Boolean  @default(true)
+  deletedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  sessions Session[]
+  accounts Account[]
+  roles UserRole[]
+  createdForms FormDefinition[] @relation("FormCreator")
+  createdVersions FormVersion[] @relation("VersionCreator")
+  submissions FormSubmission[] @relation("SubmissionCreator")
+  reviewedSubmissions FormSubmission[] @relation("SubmissionReviewer")
+  conversations ConversationSession[]
+  auditEvents AuditEvent[] @relation("AuditUser")
+  reviewComments ReviewComment[]
+  formGrants FormPermissionGrant[]
+  assignments FormAssignment[]
+
+  @@index([departmentId, isActive])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model Account {
+  id String @id @default(cuid())
+  accountId String
+  providerId String
+  userId String
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope String?
+  password String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id String @id @default(cuid())
+  identifier String
+  value String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([identifier])
+}
+
+model Department {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  isActive Boolean @default(true)
+  users User[]
+  assignments FormAssignment[]
+  submissions FormSubmission[]
+}
+
+model Project {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  description String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submissions FormSubmission[]
+}
+
+model Role {
+  id String @id @default(cuid())
+  name String @unique
+  description String?
+  userRoles UserRole[]
+  permissions RolePermission[]
+  grants FormPermissionGrant[]
+  assignments FormAssignment[]
+}
+
+model Permission {
+  id String @id @default(cuid())
+  key String @unique
+  description String?
+  roles RolePermission[]
+  grants FormPermissionGrant[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId String
+  permissionId String
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+}
+
+model FormDefinition {
+  id String @id @default(cuid())
+  name String
+  code String @unique
+  description String?
+  category String?
+  isActive Boolean @default(true)
+  currentVersionId String? @unique
+  createdByUserId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User @relation("FormCreator", fields: [createdByUserId], references: [id])
+  currentVersion FormVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions FormVersion[] @relation("FormVersions")
+  grants FormPermissionGrant[]
+  assignments FormAssignment[]
+  submissions FormSubmission[]
+  imports FormImportJob[]
+
+  @@index([isActive, category])
+}
+
+model FormVersion {
+  id String @id @default(cuid())
+  formDefinitionId String
+  versionNumber Int
+  status FormVersionStatus @default(DRAFT)
+  sourceType SourceType @default(MANUAL)
+  sourceFileMetadata Json?
+  sourceStorageKey String?
+  instructions String?
+  createdByUserId String
+  createdAt DateTime @default(now())
+  publishedAt DateTime?
+
+  formDefinition FormDefinition @relation("FormVersions", fields: [formDefinitionId], references: [id], onDelete: Cascade)
+  currentFor FormDefinition? @relation("CurrentVersion")
+  createdBy User @relation("VersionCreator", fields: [createdByUserId], references: [id])
+  fields FormFieldDefinition[]
+  submissions FormSubmission[]
+  imports FormImportJob[]
+
+  @@unique([formDefinitionId, versionNumber])
+  @@index([formDefinitionId, status])
+}
+
+model FormFieldDefinition {
+  id String @id @default(cuid())
+  formVersionId String
+  key String
+  label String
+  description String?
+  fieldType FieldType
+  required Boolean @default(false)
+  order Int
+  section String?
+  validationRules Json?
+  options Json?
+  maxLength Int?
+  minValue Float?
+  maxValue Float?
+  agentInstructions String?
+  isSearchable Boolean @default(true)
+  isEmbeddable Boolean @default(true)
+  isSensitive Boolean @default(false)
+  sourceMapping Json?
+
+  formVersion FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  values FormFieldValue[]
+
+  @@unique([formVersionId, key])
+  @@index([formVersionId, order])
+}
+
+model FormPermissionGrant {
+  id String @id @default(cuid())
+  formDefinitionId String
+  permissionId String
+  userId String?
+  roleId String?
+  formDefinition FormDefinition @relation(fields: [formDefinitionId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role? @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@index([formDefinitionId, permissionId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+model FormAssignment {
+  id String @id @default(cuid())
+  formDefinitionId String
+  type AssignmentType
+  userId String?
+  roleId String?
+  departmentId String?
+  createdAt DateTime @default(now())
+  formDefinition FormDefinition @relation(fields: [formDefinitionId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role? @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  @@index([formDefinitionId, type])
+}
+
+model FormImportJob {
+  id String @id @default(cuid())
+  formDefinitionId String?
+  formVersionId String?
+  filename String
+  mimeType String
+  storageKey String
+  status ImportStatus @default(UPLOADED)
+  normalizedDocument Json?
+  proposedSchema Json?
+  errorCode String?
+  errorMessage String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  formDefinition FormDefinition? @relation(fields: [formDefinitionId], references: [id], onDelete: SetNull)
+  formVersion FormVersion? @relation(fields: [formVersionId], references: [id], onDelete: SetNull)
+  @@index([status, createdAt])
+}
+
+model FormSubmission {
+  id String @id @default(cuid())
+  code String @unique
+  formDefinitionId String
+  formVersionId String
+  createdByUserId String
+  status SubmissionStatus @default(DRAFT)
+  revision Int @default(1)
+  departmentId String?
+  projectId String?
+  sourceSystem String?
+  externalReference String?
+  context Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submittedAt DateTime?
+  approvedAt DateTime?
+  reviewedByUserId String?
+
+  formDefinition FormDefinition @relation(fields: [formDefinitionId], references: [id])
+  formVersion FormVersion @relation(fields: [formVersionId], references: [id])
+  createdBy User @relation("SubmissionCreator", fields: [createdByUserId], references: [id])
+  reviewedBy User? @relation("SubmissionReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  values FormFieldValue[]
+  conversations ConversationSession[]
+  reviewComments ReviewComment[]
+  indexRecords KnowledgeIndexRecord[]
+  externalSyncs ExternalKnowledgeSync[]
+  attachments Attachment[]
+
+  @@index([formDefinitionId, status])
+  @@index([createdByUserId, status])
+  @@index([departmentId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([submittedAt])
+}
+
+model FormFieldValue {
+  id String @id @default(cuid())
+  submissionId String
+  fieldDefinitionId String
+  valueJson Json
+  normalizedText String?
+  confirmedByUser Boolean @default(false)
+  confidence Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fieldDefinition FormFieldDefinition @relation(fields: [fieldDefinitionId], references: [id])
+  evidence FieldEvidence[]
+  @@unique([submissionId, fieldDefinitionId])
+  @@index([submissionId])
+}
+
+model ConversationSession {
+  id String @id @default(cuid())
+  submissionId String
+  userId String
+  activeFieldKey String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  messages Message[]
+  @@index([submissionId, createdAt])
+}
+
+model Message {
+  id String @id @default(cuid())
+  conversationId String
+  role MessageRole
+  content String
+  clientMessageId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  conversation ConversationSession @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  evidence FieldEvidence[]
+  @@unique([conversationId, clientMessageId])
+  @@index([conversationId, createdAt])
+}
+
+model FieldEvidence {
+  id String @id @default(cuid())
+  fieldValueId String
+  sourceMessageId String
+  evidenceText String
+  confidence Float?
+  modelMetadata Json?
+  extractedAt DateTime @default(now())
+  fieldValue FormFieldValue @relation(fields: [fieldValueId], references: [id], onDelete: Cascade)
+  sourceMessage Message @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  @@index([fieldValueId])
+}
+
+model ReviewComment {
+  id String @id @default(cuid())
+  submissionId String
+  userId String
+  body String
+  action String?
+  createdAt DateTime @default(now())
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  @@index([submissionId, createdAt])
+}
+
+model KnowledgeIndexRecord {
+  id String @id @default(cuid())
+  submissionId String
+  provider String @default("QDRANT")
+  collection String
+  contentHash String
+  embeddingModel String
+  embeddingConfig Json?
+  status IndexStatus @default(PENDING)
+  indexedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  @@unique([submissionId, provider, collection])
+  @@index([status, updatedAt])
+}
+
+model ExternalKnowledgeSync {
+  id String @id @default(cuid())
+  submissionId String
+  provider SyncProvider
+  targetId String
+  externalFileId String?
+  contentHash String
+  status SyncStatus @default(PENDING)
+  lastAttemptAt DateTime?
+  lastSyncedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  @@unique([submissionId, provider, targetId])
+  @@index([provider, status])
+}
+
+model ApiClient {
+  id String @id @default(cuid())
+  name String
+  keyPrefix String @unique
+  keyHash String
+  scopes Json
+  isActive Boolean @default(true)
+  expiresAt DateTime?
+  lastUsedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  auditEvents AuditEvent[]
+}
+
+model Attachment {
+  id String @id @default(cuid())
+  submissionId String?
+  filename String
+  mimeType String
+  sizeBytes Int
+  storageKey String
+  createdAt DateTime @default(now())
+  submission FormSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  @@index([submissionId])
+}
+
+model SystemSetting {
+  key String @id
+  valueJson Json
+  encrypted Boolean @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model LlmUsage {
+  id String @id @default(cuid())
+  requestType String
+  model String
+  durationMs Int
+  inputTokens Int?
+  outputTokens Int?
+  success Boolean
+  errorCode String?
+  createdAt DateTime @default(now())
+  @@index([requestType, createdAt])
+}
+
+model AuditEvent {
+  id String @id @default(cuid())
+  actorUserId String?
+  apiClientId String?
+  action String
+  entityType String
+  entityId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  actorUser User? @relation("AuditUser", fields: [actorUserId], references: [id], onDelete: SetNull)
+  apiClient ApiClient? @relation(fields: [apiClientId], references: [id], onDelete: SetNull)
+  @@index([actorUserId, createdAt])
+  @@index([apiClientId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

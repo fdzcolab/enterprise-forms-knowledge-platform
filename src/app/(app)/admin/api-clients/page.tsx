@@ -1,0 +1,2 @@
+import {ApiClientAdmin} from "@/components/api-client-admin";import {requireUser} from "@/modules/auth/session";import {requirePermission} from "@/modules/auth/authorization";
+export default async function ApiClients(){const user=await requireUser();await requirePermission(user.id,"API_CLIENT_MANAGE");return <section><div className="page-head"><div><span className="eyebrow">یکپارچه‌سازی</span><h1>API Clients</h1><p>کلیدهای Bearer برای نرم‌افزارهای داخلی. راز خام فقط هنگام ایجاد نمایش داده می‌شود.</p></div></div><ApiClientAdmin/></section>}

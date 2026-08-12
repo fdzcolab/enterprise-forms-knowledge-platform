@@ -1,0 +1,4 @@
+import { listAvailableForms } from "@/modules/forms/service";
+import { StartFormButton } from "@/components/start-form-button";
+import { requireUser } from "@/modules/auth/session";
+export default async function FormsPage(){const user=await requireUser();const forms=await listAvailableForms(user.id);return <section><div className="page-head"><div><span className="eyebrow">فرم‌های قابل استفاده</span><h1>فرم‌ها</h1><p>فرم موردنظر را باز کنید و به‌صورت عادی یا با عامل گفت‌وگویی تکمیل کنید.</p></div></div><div className="cards-grid">{forms.map(f=><article className="panel" key={f.id}><div className="badge">{f.code}</div><h2>{f.name}</h2><p>{f.description||"بدون توضیح"}</p><div className="meta">نسخه {f.currentVersion?.versionNumber} · {f.currentVersion?.fields.length} فیلد</div><StartFormButton formDefinitionId={f.id}/></article>)}{!forms.length&&<div className="empty">فرم منتشرشده‌ای برای شما تخصیص نیافته است.</div>}</div></section>}

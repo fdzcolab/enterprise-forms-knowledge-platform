@@ -1,0 +1,2 @@
+import { listAvailableForms } from "@/modules/forms/service"; import { authenticateApiRequest } from "@/modules/api-clients/auth"; import { toApiError } from "@/lib/http/errors";
+export async function GET(request:Request){try{const {user}=await authenticateApiRequest(request,"forms:read");const forms=await listAvailableForms(user.id);return Response.json({data:forms.map(f=>({id:f.id,code:f.code,name:f.name,description:f.description,version:f.currentVersion?.versionNumber}))});}catch(e){return toApiError(e);}}

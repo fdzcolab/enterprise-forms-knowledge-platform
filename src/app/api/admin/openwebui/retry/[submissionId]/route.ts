@@ -1,0 +1,2 @@
+import { requireUser } from "@/modules/auth/session";import { requirePermission } from "@/modules/auth/authorization";import { syncSubmissionToOpenWebUI } from "@/modules/knowledge/indexing";import { toApiError } from "@/lib/http/errors";
+export async function POST(_:Request,{params}:{params:Promise<{submissionId:string}>}){try{const user=await requireUser();await requirePermission(user.id,"SYSTEM_CONFIGURE");const {submissionId}=await params;return Response.json({data:await syncSubmissionToOpenWebUI(submissionId)});}catch(e){return toApiError(e);}}
